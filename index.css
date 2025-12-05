@@ -1,0 +1,40 @@
+/* Arita Buri KR Font Family */
+@font-face {
+  font-family: 'Arita Buri KR';
+  src: url('/fonts/AritaBuriKR-HairLine.ttf') format('truetype');
+  font-weight: 100;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Arita Buri KR';
+  src: url('/fonts/AritaBuriKR-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Arita Buri KR';
+  src: url('/fonts/AritaBuriKR-Medium.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Arita Buri KR';
+  src: url('/fonts/AritaBuriKR-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Arita Buri KR';
+  src: url('/fonts/AritaBuriKR-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
