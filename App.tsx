@@ -100,8 +100,13 @@ const App: React.FC = () => {
   };
 
   // Handler for updating generated images from OutputSection
-  const handleImagesUpdate = (images: Record<number, string>) => {
-    setGeneratedImages(images);
+  // Supports both direct value and functional update to handle concurrent updates
+  const handleImagesUpdate = (imagesOrUpdater: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => {
+    if (typeof imagesOrUpdater === 'function') {
+      setGeneratedImages(imagesOrUpdater);
+    } else {
+      setGeneratedImages(imagesOrUpdater);
+    }
   };
 
   // Handler for updating video URLs from OutputSection

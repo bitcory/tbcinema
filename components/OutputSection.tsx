@@ -14,7 +14,7 @@ interface OutputSectionProps {
   onReset: () => void;
   onCopyToast: (msg: string) => void;
   generatedImages: Record<number, string>;
-  onImagesUpdate: (images: Record<number, string>) => void;
+  onImagesUpdate: (imagesOrUpdater: Record<number, string> | ((prev: Record<number, string>) => Record<number, string>)) => void;
   videoUrls: Record<number, string>;
   onVideosUpdate: (videos: Record<number, string>) => void;
 }
@@ -126,7 +126,8 @@ const OutputSection: React.FC<OutputSectionProps> = ({
             for (const part of response.candidates[0].content.parts) {
                 if (part.inlineData && part.inlineData.data) {
                     const base64Image = `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
-                    onImagesUpdate({ ...generatedImages, [index]: base64Image });
+                    // Use callback to get latest state and avoid stale closure issue
+                    onImagesUpdate(prev => ({ ...prev, [index]: base64Image }));
                     break;
                 }
             }
