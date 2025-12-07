@@ -117,8 +117,19 @@ const App: React.FC = () => {
   // Handler for restoring data from backup file (used in InputSection)
   const handleRestoreData = (restoredData: StoryboardData, images: Record<number, string>, videos: Record<number, string>) => {
     setData(restoredData);
-    setGeneratedImages(images);
-    setVideoUrls(videos);
+
+    // JSON에서 복원 시 키가 문자열로 저장되므로 숫자로 변환
+    const numericImages: Record<number, string> = {};
+    Object.entries(images).forEach(([key, value]) => {
+      numericImages[parseInt(key, 10)] = value;
+    });
+    setGeneratedImages(numericImages);
+
+    const numericVideos: Record<number, string> = {};
+    Object.entries(videos).forEach(([key, value]) => {
+      numericVideos[parseInt(key, 10)] = value;
+    });
+    setVideoUrls(numericVideos);
 
     // Also update jsonInput with the restored data for reference
     if (restoredData.reference_image) {

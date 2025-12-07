@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Code2, AlertTriangle, Upload, Image as ImageIcon, X, Settings, Key, Home, Grid, Video, HardDriveUpload, Link, Loader2 } from 'lucide-react';
+import { Sparkles, Code2, AlertTriangle, Upload, Image as ImageIcon, X, Settings, Key, Home, Grid, Video, HardDriveUpload, Link, Loader2, Wand2 } from 'lucide-react';
 
 interface InputSectionProps {
   onVisualize: (jsonString: string, referenceImage?: string | null) => void;
@@ -173,29 +173,19 @@ const InputSection: React.FC<InputSectionProps> = ({
           <Home size={22} />
         </button>
 
-        {/* Navigation - Enabled when data exists */}
+        {/* Navigation - Always enabled */}
         <div className="flex flex-col items-center gap-2">
           <button
             onClick={hasData ? onGoToOutput : undefined}
-            disabled={!hasData}
-            className={`p-3 rounded-xl transition-all ${
-              hasData
-                ? 'hover:bg-zinc-900 text-zinc-500 hover:text-zinc-300 cursor-pointer'
-                : 'text-zinc-700 cursor-not-allowed'
-            }`}
-            title={hasData ? '스토리보드' : '스토리보드 (JSON 입력 후 사용 가능)'}
+            className="p-3 rounded-xl transition-all hover:bg-zinc-900 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+            title="스토리보드"
           >
             <Grid size={20} />
           </button>
           <button
             onClick={hasData ? onGoToOutput : undefined}
-            disabled={!hasData}
-            className={`p-3 rounded-xl transition-all ${
-              hasData
-                ? 'hover:bg-zinc-900 text-zinc-500 hover:text-zinc-300 cursor-pointer'
-                : 'text-zinc-700 cursor-not-allowed'
-            }`}
-            title={hasData ? '비디오' : '비디오 (JSON 입력 후 사용 가능)'}
+            className="p-3 rounded-xl transition-all hover:bg-zinc-900 text-zinc-500 hover:text-zinc-300 cursor-pointer"
+            title="비디오"
           >
             <Video size={20} />
           </button>
@@ -408,6 +398,18 @@ const InputSection: React.FC<InputSectionProps> = ({
             {jsonInput.length > 0 ? `${jsonInput.length} 자` : '입력 대기 중...'}
           </span>
         </div>
+
+        {/* 프롬프트 생성기 버튼 */}
+        <a
+          href="https://gemini.google.com/gem/11aAquDJTDgGsr8-0XTzYRv2XHVw7ZpI9?usp=sharing"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 w-full max-w-6xl flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.01] active:scale-[0.99]"
+        >
+          <Wand2 size={18} />
+          <span>프롬프트 생성기로 JSON 만들기</span>
+          <span className="text-xs bg-white/20 px-2 py-0.5 rounded ml-1">Gemini Gem</span>
+        </a>
 
         {error && (
           <motion.div

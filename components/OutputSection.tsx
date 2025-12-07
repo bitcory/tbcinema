@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Clock, Ratio, Palette, Film, Download, Sparkles, Loader2, Image as ImageIcon, Video, Grid, Upload, HardDriveDownload, HardDriveUpload, Play, Home } from 'lucide-react';
-import { StoryboardData } from '../types';
+import { StoryboardData, VideoGenerationStatus } from '../types';
 import StoryboardCard from './StoryboardCard';
 import VideoCard from './VideoCard';
 import ImageModal from './ImageModal';
 import { GoogleGenAI } from "@google/genai";
 import JSZip from 'jszip';
+import { generateVideoComplete, VeoConfig, VeoModelId } from '../services/veoApi';
+import { setBlob, getBlob, generateThumbnail } from '../utils/indexedDB';
 
 interface OutputSectionProps {
   data: StoryboardData;
@@ -37,10 +39,17 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   // Tab State
   const [activeTab, setActiveTab] = useState<'storyboard' | 'videos'>('storyboard');
 
-  // Local generating status
+  // Local generating status (이미지)
   const [generatingStatus, setGeneratingStatus] = useState<Record<number, boolean>>({});
   const [isGlobalGenerating, setIsGlobalGenerating] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
+
+  // 비디오 생성 상태
+  const [videoGenerationStatus, setVideoGenerationStatus] = useState<Record<number, VideoGenerationStatus>>({});
+  const abortControllersRef = useRef<Record<number, AbortController>>({});
+
+  // 비디오 모델 선택 상태 (각 샷별로 관리)
+  const [selectedModels, setSelectedModels] = useState<Record<number, VeoModelId>>({});
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -70,6 +79,122 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   const handleSaveVideoUrl = (index: number, url: string) => {
     onVideosUpdate({ ...videoUrls, [index]: url });
     onCopyToast("동영상 URL 저장됨");
+  };
+
+  // 비디오 생성 함수
+  const generateVideoForShot = async (index: number, model: VeoModelId = 'veo-3.1-fast-generate-preview') => {
+    const shot = storyboard_sequence[index];
+    const prompt = shot.prompts?.video_gen;
+    const startImage = generatedImages[index];
+
+    if (!prompt && !startImage) {
+      onCopyToast("비디오 프롬프트 또는 시작 이미지가 필요합니다.");
+      return;
+    }
+
+    if (!apiKey) {
+      onCopyToast("API 키가 설정되지 않았습니다.");
+      return;
+    }
+
+    // 상태 초기화
+    setVideoGenerationStatus(prev => ({
+      ...prev,
+      [index]: { status: 'generating', progress: 0, message: '비디오 생성 준비 중...' }
+    }));
+
+    try {
+      // 시작 이미지 처리
+      let startFrameBase64: string | undefined;
+      let startFrameMimeType: string | undefined;
+
+      if (startImage) {
+        // data:image/png;base64,xxxx 형식에서 추출
+        const match = startImage.match(/^data:([^;]+);base64,(.+)$/);
+        if (match) {
+          startFrameMimeType = match[1];
+          startFrameBase64 = match[2];
+        }
+      }
+
+      // 비디오 생성 설정 (선택된 모델 사용)
+      const config: Partial<VeoConfig> = {
+        model: model,
+        aspectRatio: '16:9',
+      };
+
+      // 비디오 생성 실행
+      const videoBlob = await generateVideoComplete(
+        apiKey,
+        prompt || 'Generate a cinematic video based on the provided image',
+        config,
+        startFrameBase64,
+        startFrameMimeType,
+        (status) => {
+          setVideoGenerationStatus(prev => ({ ...prev, [index]: status }));
+        }
+      );
+
+      // IndexedDB에 저장
+      const videoId = `video_${index}`;
+      await setBlob(videoId, videoBlob);
+
+      // 썸네일 생성 및 저장
+      try {
+        const thumbnailBlob = await generateThumbnail(videoBlob);
+        await setBlob(`thumbnail_${index}`, thumbnailBlob);
+      } catch (e) {
+        console.warn('썸네일 생성 실패:', e);
+      }
+
+      // Object URL 생성하여 상태 업데이트
+      const videoUrl = URL.createObjectURL(videoBlob);
+      onVideosUpdate({ ...videoUrls, [index]: videoUrl });
+
+      setVideoGenerationStatus(prev => ({
+        ...prev,
+        [index]: { status: 'completed', progress: 100, message: '완료!' }
+      }));
+
+      onCopyToast(`#${shot.kf_id} 비디오 생성 완료!`);
+
+    } catch (error) {
+      console.error(`Video generation failed for shot ${index}:`, error);
+      setVideoGenerationStatus(prev => ({
+        ...prev,
+        [index]: {
+          status: 'error',
+          progress: 0,
+          message: error instanceof Error ? error.message : '알 수 없는 오류'
+        }
+      }));
+      onCopyToast(`#${shot.kf_id} 비디오 생성 실패: ${error instanceof Error ? error.message : '오류'}`);
+    }
+  };
+
+  // 비디오 생성 취소
+  const cancelVideoGeneration = (index: number) => {
+    // 현재는 간단히 상태만 리셋 (실제 API 취소는 미지원)
+    setVideoGenerationStatus(prev => ({
+      ...prev,
+      [index]: { status: 'idle', progress: 0, message: '' }
+    }));
+    onCopyToast("비디오 생성이 취소되었습니다.");
+  };
+
+  // 비디오 프롬프트 업데이트
+  const handleUpdateVideoPrompt = (index: number, prompt: string) => {
+    // storyboard_sequence의 해당 shot의 prompts.video_gen을 업데이트
+    // data는 props로 받아온 것이므로 로컬 상태로 관리 필요
+    storyboard_sequence[index].prompts = {
+      ...storyboard_sequence[index].prompts,
+      video_gen: prompt,
+    };
+  };
+
+  // 장면 설명 업데이트
+  const handleUpdateDescription = (index: number, description: string) => {
+    storyboard_sequence[index].visual_description = description;
   };
 
   // Generalized Image Generation Logic
@@ -283,14 +408,22 @@ const OutputSection: React.FC<OutputSectionProps> = ({
           throw new Error('유효하지 않은 백업 파일입니다.');
         }
 
-        // Restore images
+        // Restore images (키를 숫자로 변환)
         if (backupData.generatedImages) {
-          onImagesUpdate(backupData.generatedImages);
+          const numericImages: Record<number, string> = {};
+          Object.entries(backupData.generatedImages).forEach(([key, value]) => {
+            numericImages[parseInt(key, 10)] = value as string;
+          });
+          onImagesUpdate(numericImages);
         }
 
-        // Restore video URLs
+        // Restore video URLs (키를 숫자로 변환)
         if (backupData.videoUrls) {
-          onVideosUpdate(backupData.videoUrls);
+          const numericVideos: Record<number, string> = {};
+          Object.entries(backupData.videoUrls).forEach(([key, value]) => {
+            numericVideos[parseInt(key, 10)] = value as string;
+          });
+          onVideosUpdate(numericVideos);
         }
 
         onCopyToast('백업 데이터 복원 완료!');
@@ -493,7 +626,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
                 initial="hidden"
                 animate="show"
                 exit={{ opacity: 0, y: -20 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
+                className="flex flex-col gap-4"
               >
                 {storyboard_sequence.map((shot, idx) => (
                   <motion.div key={idx} variants={item}>
@@ -501,8 +634,16 @@ const OutputSection: React.FC<OutputSectionProps> = ({
                       shot={shot}
                       index={idx}
                       savedUrl={videoUrls[idx]}
+                      generatedImage={generatedImages[idx]}
+                      generationStatus={videoGenerationStatus[idx]}
                       onSave={(url) => handleSaveVideoUrl(idx, url)}
                       onCopy={handleCopy}
+                      onGenerateVideo={(model) => generateVideoForShot(idx, model)}
+                      onCancelGeneration={() => cancelVideoGeneration(idx)}
+                      onUpdatePrompt={(prompt) => handleUpdateVideoPrompt(idx, prompt)}
+                      onUpdateDescription={(desc) => handleUpdateDescription(idx, desc)}
+                      selectedModel={selectedModels[idx] || 'veo-3.1-fast-generate-preview'}
+                      onModelChange={(model) => setSelectedModels(prev => ({ ...prev, [idx]: model }))}
                     />
                   </motion.div>
                 ))}
