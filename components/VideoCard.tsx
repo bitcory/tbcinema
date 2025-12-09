@@ -155,9 +155,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
   const hasVideo = !!effectiveUrl;
 
   return (
-    <div className="flex flex-col lg:flex-row bg-zinc-900/40 rounded-xl border border-zinc-800/50 hover:border-zinc-700 transition-colors duration-300 overflow-hidden">
+    <div className="flex flex-col lg:flex-row bg-zinc-900/40 rounded-lg border border-zinc-800/50 hover:border-zinc-700 transition-colors duration-300 overflow-hidden">
       {/* 좌측: 영상 섹션 */}
-      <div className="w-full lg:w-[480px] xl:w-[560px] flex-shrink-0 flex flex-col">
+      <div className="w-full lg:w-[360px] xl:w-[400px] flex-shrink-0 flex flex-col">
         {/* 비디오 영역 */}
         <div className="relative aspect-video bg-zinc-950 overflow-hidden group">
           {renderProgressOverlay()}
@@ -254,45 +254,29 @@ const VideoCard: React.FC<VideoCardProps> = ({
           )}
 
           {/* Shot ID */}
-          <div className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-md border border-white/10 text-sm font-mono text-zinc-300 pointer-events-none z-10">
+          <div className="absolute top-1.5 left-1.5 px-2 py-0.5 rounded bg-black/60 backdrop-blur-md border border-white/10 text-xs font-mono text-zinc-300 pointer-events-none z-10">
             #{shot.kf_id}
           </div>
         </div>
 
         {/* 비디오 생성/재생성 버튼 - 영상 아래 배치 */}
-        <div className="p-3 bg-zinc-900/60 border-t border-zinc-800/50">
+        <div className="p-2 bg-zinc-900/60 border-t border-zinc-800/50">
           {(hasPrompt || hasStartFrame) && !isGenerating ? (
-            <div className="space-y-2">
+            <div className="flex items-center gap-1.5">
               {/* 모델 선택 드롭다운 */}
-              <div className="flex items-center gap-2">
-                <label className="text-xs text-zinc-500 whitespace-nowrap">모델:</label>
-                <div className="relative flex-1">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => onModelChange?.(e.target.value as VeoModelId)}
-                    className="w-full appearance-none px-3 py-1.5 pr-8 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-zinc-300 focus:outline-none focus:border-indigo-500/50 cursor-pointer"
-                  >
-                    {VEO_MODELS.map((model) => (
-                      <option key={model.id} value={model.id}>
-                        {model.name} - {model.description}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-                </div>
-                {/* 모델 티어 배지 */}
-                {VEO_MODELS.find(m => m.id === selectedModel)?.tier === 'fast' && (
-                  <span className="px-2 py-0.5 rounded bg-emerald-600/20 text-emerald-400 text-xs flex items-center gap-1">
-                    <Zap size={10} />
-                    저렴
-                  </span>
-                )}
-                {VEO_MODELS.find(m => m.id === selectedModel)?.tier === 'standard' && (
-                  <span className="px-2 py-0.5 rounded bg-amber-600/20 text-amber-400 text-xs flex items-center gap-1">
-                    <Star size={10} />
-                    고품질
-                  </span>
-                )}
+              <div className="relative flex-1">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => onModelChange?.(e.target.value as VeoModelId)}
+                  className="w-full appearance-none px-2 py-1.5 pr-6 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-zinc-300 focus:outline-none focus:border-indigo-500/50 cursor-pointer"
+                >
+                  {VEO_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={10} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
               </div>
 
               {/* 생성 버튼 */}
@@ -301,33 +285,31 @@ const VideoCard: React.FC<VideoCardProps> = ({
                   e.stopPropagation();
                   onGenerateVideo?.(selectedModel);
                 }}
-                className={`w-full py-3 rounded-lg text-white font-semibold flex items-center justify-center gap-2 transition-all ${
+                className={`flex-shrink-0 px-3 py-1.5 rounded text-white text-xs font-medium flex items-center gap-1 transition-all ${
                   hasVideo
-                    ? 'bg-zinc-700 hover:bg-zinc-600 text-sm'
+                    ? 'bg-zinc-700 hover:bg-zinc-600'
                     : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500'
                 }`}
               >
-                <Sparkles size={18} />
-                {hasVideo ? 'AI 비디오 재생성' : 'AI 비디오 생성'}
-                {hasStartFrame && (
-                  <span className="ml-1 px-2 py-0.5 rounded bg-white/20 text-xs">이미지 사용</span>
-                )}
+                <Sparkles size={12} />
+                {hasVideo ? '재생성' : '생성'}
+                {hasStartFrame && <span className="px-1 rounded bg-white/20 text-[9px]">img</span>}
               </button>
             </div>
           ) : !isGenerating ? (
-            <div className="text-center text-sm text-zinc-500 py-2">
-              비디오 프롬프트 또는 시작 이미지가 필요합니다
+            <div className="text-center text-[10px] text-zinc-500 py-1">
+              프롬프트 또는 이미지 필요
             </div>
           ) : null}
         </div>
       </div>
 
       {/* 우측: 장면 설명 & 비디오 프롬프트 */}
-      <div className="flex-1 p-5 flex flex-col gap-5 min-w-0 border-t lg:border-t-0 lg:border-l border-zinc-800/50">
+      <div className="flex-1 p-3 flex flex-col gap-3 min-w-0 border-t lg:border-t-0 lg:border-l border-zinc-800/50">
         {/* 장면 설명 */}
-        <div className="flex-1 flex flex-col">
-          <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2 flex items-center gap-1.5">
-            <Clapperboard size={12} />
+        <div className="flex flex-col">
+          <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 mb-1 flex items-center gap-1">
+            <Clapperboard size={10} />
             장면 설명
           </label>
           <textarea
@@ -336,29 +318,29 @@ const VideoCard: React.FC<VideoCardProps> = ({
               setEditedDescription(e.target.value);
               onUpdateDescription?.(e.target.value);
             }}
-            className="flex-1 min-h-[100px] w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-zinc-300 resize-none focus:outline-none focus:border-indigo-500/50 leading-relaxed"
+            className="h-[60px] w-full px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-300 resize-none focus:outline-none focus:border-indigo-500/50 leading-relaxed"
             placeholder="장면 설명을 입력하세요..."
           />
         </div>
 
         {/* 비디오 프롬프트 */}
-        <div className="flex-1 flex flex-col">
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-xs font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1.5">
-              <FileText size={12} />
+        <div className="flex flex-col">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 flex items-center gap-1">
+              <FileText size={10} />
               비디오 프롬프트
             </label>
             {editedPrompt && (
               <button
                 onClick={handleCopyPrompt}
-                className={`p-1.5 rounded-md transition-all ${
+                className={`p-1 rounded transition-all ${
                   copied
                     ? 'bg-emerald-600/20 text-emerald-400'
                     : 'hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300'
                 }`}
                 title="프롬프트 복사"
               >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? <Check size={12} /> : <Copy size={12} />}
               </button>
             )}
           </div>
@@ -368,7 +350,7 @@ const VideoCard: React.FC<VideoCardProps> = ({
               setEditedPrompt(e.target.value);
               onUpdatePrompt?.(e.target.value);
             }}
-            className="flex-1 min-h-[120px] w-full px-4 py-3 bg-zinc-950 border border-zinc-800 rounded-lg text-sm text-zinc-300 resize-none focus:outline-none focus:border-indigo-500/50 leading-relaxed font-mono"
+            className="h-[80px] w-full px-2.5 py-2 bg-zinc-950 border border-zinc-800 rounded text-xs text-zinc-300 resize-none focus:outline-none focus:border-indigo-500/50 leading-relaxed font-mono"
             placeholder="비디오 생성 프롬프트를 입력하세요..."
           />
         </div>

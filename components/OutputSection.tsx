@@ -376,21 +376,139 @@ const OutputSection: React.FC<OutputSectionProps> = ({
       window.URL.revokeObjectURL(url);
   };
 
-  // Backup: Download all data as JSON
-  const handleBackupData = () => {
+  // Blob URL을 Base64로 변환
+  const blobUrlToBase64 = async (blobUrl: string): Promise<string | null> => {
+    try {
+      // 이미 data: URL이면 그대로 반환
+      if (blobUrl.startsWith('data:')) {
+        return blobUrl;
+      }
+
+      // blob: URL인 경우 변환
+      if (blobUrl.startsWith('blob:')) {
+        const response = await fetch(blobUrl);
+        if (!response.ok) {
+          console.warn('Blob fetch 실패:', blobUrl);
+          return null;
+        }
+        const blob = await response.blob();
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            console.log('Blob -> Base64 변환 성공, 길이:', result.length);
+            resolve(result);
+          };
+          reader.onerror = () => {
+            console.warn('FileReader 오류');
+            resolve(null);
+          };
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      // 일반 URL (http/https)은 그대로 반환
+      return blobUrl;
+    } catch (e) {
+      console.warn('Blob URL 변환 실패:', blobUrl, e);
+      return null;
+    }
+  };
+
+  // Backup: Download all data as JSON (비디오를 Base64로 변환)
+  const handleBackupData = async () => {
+    const videoCount = Object.keys(videoUrls).length;
+    if (videoCount === 0) {
+      // 비디오가 없어도 백업 진행
+      const backupData = {
+        version: '1.1',
+        timestamp: new Date().toISOString(),
+        data: data,
+        generatedImages: generatedImages,
+        videoBase64: {},
+      };
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json' });
+      const filename = `storyboard-backup-${project_meta.title.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`;
+      triggerDownload(blob, filename);
+      onCopyToast('백업 파일 다운로드 완료!');
+      return;
+    }
+
+    onCopyToast(`비디오 ${videoCount}개 변환 중...`);
+
+    // 비디오 URL들을 Base64로 변환
+    const videoBase64: Record<number, string> = {};
+    let converted = 0;
+
+    for (const [key, url] of Object.entries(videoUrls)) {
+      console.log(`비디오 ${key} 변환 시작:`, url.substring(0, 50));
+      const base64 = await blobUrlToBase64(url);
+      if (base64) {
+        videoBase64[parseInt(key, 10)] = base64;
+        converted++;
+        console.log(`비디오 ${key} 변환 완료`);
+      } else {
+        console.warn(`비디오 ${key} 변환 실패`);
+      }
+    }
+
     const backupData = {
-      version: '1.0',
+      version: '1.1',
       timestamp: new Date().toISOString(),
       data: data,
       generatedImages: generatedImages,
-      videoUrls: videoUrls,
+      videoBase64: videoBase64,
     };
 
     const jsonString = JSON.stringify(backupData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
     const filename = `storyboard-backup-${project_meta.title.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().slice(0, 10)}.json`;
     triggerDownload(blob, filename);
-    onCopyToast('백업 파일 다운로드 완료!');
+    onCopyToast(`백업 완료! (비디오 ${converted}/${videoCount}개 저장됨)`);
+  };
+
+  // Base64 Data URL을 Blob URL로 변환
+  const base64ToBlobUrl = (base64: string): string => {
+    try {
+      // 이미 blob: URL이면 그대로 반환 (호환성 - 하지만 작동 안 할 수 있음)
+      if (base64.startsWith('blob:')) {
+        console.warn('blob: URL은 복원 불가:', base64.substring(0, 50));
+        return ''; // blob URL은 세션 종료 후 무효
+      }
+
+      // http/https URL은 그대로 반환
+      if (base64.startsWith('http://') || base64.startsWith('https://')) {
+        return base64;
+      }
+
+      // data: URL이 아니면 빈 값 반환
+      if (!base64.startsWith('data:')) {
+        console.warn('알 수 없는 URL 형식:', base64.substring(0, 50));
+        return '';
+      }
+
+      console.log('Base64 -> Blob URL 변환 시작, 데이터 길이:', base64.length);
+
+      const [header, data] = base64.split(',');
+      const mimeMatch = header.match(/data:([^;]+)/);
+      const mimeType = mimeMatch ? mimeMatch[1] : 'video/mp4';
+
+      const byteCharacters = atob(data);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: mimeType });
+
+      const blobUrl = URL.createObjectURL(blob);
+      console.log('Base64 -> Blob URL 변환 성공:', blobUrl);
+      return blobUrl;
+    } catch (e) {
+      console.error('Base64 변환 실패:', e);
+      return '';
+    }
   };
 
   // Restore: Upload and restore data from JSON
@@ -398,11 +516,16 @@ const OutputSection: React.FC<OutputSectionProps> = ({
     const file = event.target.files?.[0];
     if (!file) return;
 
+    onCopyToast('백업 파일 읽는 중...');
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
         const backupData = JSON.parse(content);
+
+        console.log('백업 파일 버전:', backupData.version);
+        console.log('백업 시간:', backupData.timestamp);
 
         if (!backupData.data || !backupData.data.storyboard_sequence) {
           throw new Error('유효하지 않은 백업 파일입니다.');
@@ -415,18 +538,36 @@ const OutputSection: React.FC<OutputSectionProps> = ({
             numericImages[parseInt(key, 10)] = value as string;
           });
           onImagesUpdate(numericImages);
+          console.log('이미지 복원:', Object.keys(numericImages).length, '개');
         }
 
-        // Restore video URLs (키를 숫자로 변환)
-        if (backupData.videoUrls) {
+        // Restore video URLs - v1.1 (videoBase64) 또는 v1.0 (videoUrls) 지원
+        const videoSource = backupData.videoBase64 || backupData.videoUrls;
+        if (videoSource && Object.keys(videoSource).length > 0) {
           const numericVideos: Record<number, string> = {};
-          Object.entries(backupData.videoUrls).forEach(([key, value]) => {
-            numericVideos[parseInt(key, 10)] = value as string;
-          });
-          onVideosUpdate(numericVideos);
-        }
+          let restoredCount = 0;
 
-        onCopyToast('백업 데이터 복원 완료!');
+          Object.entries(videoSource).forEach(([key, value]) => {
+            const url = value as string;
+            console.log(`비디오 ${key} 복원 시도, 타입:`, url.substring(0, 30));
+
+            // Base64 data URL이면 Blob URL로 변환
+            const blobUrl = base64ToBlobUrl(url);
+            if (blobUrl) {
+              numericVideos[parseInt(key, 10)] = blobUrl;
+              restoredCount++;
+            }
+          });
+
+          if (restoredCount > 0) {
+            onVideosUpdate(numericVideos);
+            console.log('비디오 복원:', restoredCount, '개');
+          }
+
+          onCopyToast(`복원 완료! (비디오 ${restoredCount}개)`);
+        } else {
+          onCopyToast('백업 데이터 복원 완료! (비디오 없음)');
+        }
       } catch (err) {
         console.error('Restore failed:', err);
         onCopyToast('백업 파일 복원 실패. 파일 형식을 확인해주세요.');
@@ -603,7 +744,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
                 initial="hidden"
                 animate="show"
                 exit={{ opacity: 0, y: -20 }}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
+                className="flex flex-col gap-4"
               >
                 {storyboard_sequence.map((shot, idx) => (
                   <motion.div key={idx} variants={item}>
