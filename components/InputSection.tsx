@@ -194,22 +194,6 @@ const InputSection: React.FC<InputSectionProps> = ({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Restore Button */}
-        <button
-          onClick={() => restoreInputRef.current?.click()}
-          className="p-3 rounded-xl hover:bg-zinc-900 text-zinc-400 hover:text-blue-400 transition-colors mb-2"
-          title="백업 데이터 복원 (JSON 업로드)"
-        >
-          <HardDriveUpload size={20} />
-        </button>
-        <input
-          ref={restoreInputRef}
-          type="file"
-          accept=".json"
-          onChange={handleRestoreFile}
-          className="hidden"
-        />
-
         {/* Settings Button */}
         <button
           onClick={() => {
@@ -256,6 +240,24 @@ const InputSection: React.FC<InputSectionProps> = ({
           <p className="text-zinc-400 text-base md:text-lg max-w-md mx-auto break-keep">
             API 키를 설정하고 JSON 스크립트를 입력하여 시각적인 스토리보드로 변환하세요.
           </p>
+        </div>
+
+        {/* 백업 복원 버튼 - 우측 상단 */}
+        <div className="w-full max-w-6xl flex justify-end mb-3">
+          <button
+            onClick={() => restoreInputRef.current?.click()}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-blue-400 text-sm transition-all"
+          >
+            <HardDriveUpload size={16} />
+            <span>백업 복원</span>
+          </button>
+          <input
+            ref={restoreInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleRestoreFile}
+            className="hidden"
+          />
         </div>
 
         <div className="w-full max-w-6xl grid lg:grid-cols-[1fr_300px] gap-6">

@@ -24,8 +24,8 @@ const StoryboardCard: React.FC<StoryboardCardProps> = ({
   const [isHovering, setIsHovering] = useState(false);
   const [copiedType, setCopiedType] = useState<string | null>(null);
 
-  // Fallback image if no URL provided and no generated image
-  const imageUrl = generatedImage || shot.assets?.image_url || `https://picsum.photos/seed/${shot.kf_id || index}/800/450`;
+  // Use generated image or asset image, no external fallback
+  const imageUrl = generatedImage || shot.assets?.image_url || null;
   const hasVideo = !!shot.assets?.video_url;
 
   const handleCopy = (text: string, type: string) => {
@@ -55,13 +55,20 @@ const StoryboardCard: React.FC<StoryboardCardProps> = ({
               loop
               className="w-full h-full object-cover animate-in fade-in duration-300"
             />
-          ) : (
+          ) : imageUrl ? (
             <img
               src={imageUrl}
               alt={`Shot ${shot.kf_id}`}
               className={`w-full h-full object-cover transition-transform duration-700 ${isGenerating ? 'scale-100 opacity-50 blur-sm' : 'group-hover/image:scale-105'}`}
               loading="lazy"
             />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-zinc-900">
+              <div className="text-center text-zinc-600">
+                <ImageIcon size={32} className="mx-auto mb-2 opacity-50" />
+                <span className="text-xs">이미지 없음</span>
+              </div>
+            </div>
           )}
 
           {/* Loading Overlay */}
