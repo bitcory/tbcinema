@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Code2, AlertTriangle, Upload, Image as ImageIcon, X, Settings, Key, Home, Grid, Video, HardDriveUpload, Link, Loader2, Wand2 } from 'lucide-react';
+import { Sparkles, Code2, AlertTriangle, Upload, Image as ImageIcon, X, Settings, Key, Home, Grid, Video, HardDriveUpload, Link, Loader2, Wand2, ClipboardPaste } from 'lucide-react';
 
 interface InputSectionProps {
   onVisualize: (jsonString: string, referenceImage?: string | null) => void;
@@ -276,9 +276,32 @@ const InputSection: React.FC<InputSectionProps> = ({
                   </div>
                   <span className="ml-3 text-xs text-zinc-500 font-mono">script.json</span>
                 </div>
-                <div className="text-xs text-zinc-600 flex items-center gap-1">
-                  <Code2 size={12} />
-                  <span>JSON 모드</span>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const text = await navigator.clipboard.readText();
+                        if (text) {
+                          onJsonInputChange(text);
+                          onShowToast('클립보드 내용이 붙여넣어졌습니다!');
+                        } else {
+                          onShowToast('클립보드가 비어있습니다.');
+                        }
+                      } catch (err) {
+                        console.error('Clipboard read failed:', err);
+                        onShowToast('클립보드 접근 권한이 필요합니다.');
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 hover:text-indigo-300 text-xs font-medium transition-all border border-indigo-500/30 hover:border-indigo-500/50"
+                    title="클립보드에서 붙여넣기"
+                  >
+                    <ClipboardPaste size={12} />
+                    <span>복붙하기</span>
+                  </button>
+                  <div className="text-xs text-zinc-600 flex items-center gap-1">
+                    <Code2 size={12} />
+                    <span>JSON 모드</span>
+                  </div>
                 </div>
               </div>
 

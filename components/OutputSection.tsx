@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Clock, Ratio, Palette, Film, Download, Sparkles, Loader2, Image as ImageIcon, Video, Grid, Upload, HardDriveDownload, HardDriveUpload, Play, Home } from 'lucide-react';
+import { ArrowLeft, Clock, Ratio, Palette, Film, Download, Sparkles, Loader2, Image as ImageIcon, Video, Grid, Upload, HardDriveDownload, HardDriveUpload, Play, Home, RefreshCw } from 'lucide-react';
 import { StoryboardData, VideoGenerationStatus } from '../types';
 import StoryboardCard from './StoryboardCard';
 import VideoCard from './VideoCard';
@@ -673,8 +673,30 @@ const OutputSection: React.FC<OutputSectionProps> = ({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {/* Backup/Restore Buttons */}
+              {/* Refresh / Backup / Restore Buttons */}
               <div className="flex items-center gap-1">
+                <button
+                  onClick={() => {
+                    // 이미지와 비디오 상태 초기화 후 다시 불러오기
+                    onImagesUpdate({});
+                    onVideosUpdate({});
+                    // JSON 데이터에서 비디오 URL 다시 로드
+                    const initialVideos: Record<number, string> = {};
+                    storyboard_sequence.forEach((shot, index) => {
+                      if (shot.assets?.video_url) {
+                        initialVideos[index] = shot.assets.video_url;
+                      }
+                    });
+                    if (Object.keys(initialVideos).length > 0) {
+                      onVideosUpdate(initialVideos);
+                    }
+                    onCopyToast('이미지 & 비디오 새로고침 완료!');
+                  }}
+                  className="p-2 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-yellow-400 transition-colors"
+                  title="이미지 & 비디오 새로고침"
+                >
+                  <RefreshCw size={18} />
+                </button>
                 <button
                   onClick={handleBackupData}
                   className="p-2 rounded-lg hover:bg-zinc-900 text-zinc-400 hover:text-emerald-400 transition-colors"
