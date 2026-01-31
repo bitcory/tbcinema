@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { House, SquaresFour, VideoCamera as VideoIcon, ArrowClockwise, HardDrives, Database, DownloadSimple, Sparkle, CircleNotch, Image as ImageIconPhosphor, FilmSlate } from 'phosphor-react';
+import { House, SquaresFour, VideoCamera as VideoIcon, ArrowClockwise, HardDrives, Database, DownloadSimple, Sparkle, CircleNotch, Image as ImageIconPhosphor, FilmSlate, Article, Copy, Check } from 'phosphor-react';
 import { StoryboardData, VideoGenerationStatus } from '../types';
 import StoryboardCard from './StoryboardCard';
 import VideoCard from './VideoCard';
@@ -38,7 +38,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Tab State
-  const [activeTab, setActiveTab] = useState<'storyboard' | 'videos'>('storyboard');
+  const [activeTab, setActiveTab] = useState<'storyboard' | 'videos' | 'scenario'>('storyboard');
 
   // Local generating status (이미지)
   const [generatingStatus, setGeneratingStatus] = useState<Record<number, boolean>>({});
@@ -60,6 +60,13 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   const [videoModalOpen, setVideoModalOpen] = useState(false);
   const [selectedVideoIndex, setSelectedVideoIndex] = useState<number | null>(null);
 
+  // Scenario copy state
+  const [scenarioCopied, setScenarioCopied] = useState(false);
+
+  // Narration generation state
+  const [narrations, setNarrations] = useState<Record<number, string>>({});
+  const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
+
   // Initialize Video URLs from JSON (only if not already set)
   useEffect(() => {
     const hasExistingVideos = Object.keys(videoUrls).length > 0;
@@ -75,6 +82,69 @@ const OutputSection: React.FC<OutputSectionProps> = ({
       }
     }
   }, [storyboard_sequence]);
+
+  // Generate narrations for all shots
+  const generateNarrations = async () => {
+    if (!apiKey) {
+      onCopyToast("API 키가 설정되지 않았습니다.");
+      return;
+    }
+
+    setIsGeneratingNarration(true);
+
+    try {
+      const genAI = new GoogleGenAI({ apiKey: apiKey });
+
+      const scenarioText = storyboard_sequence
+        .map((shot, idx) => `신 ${idx + 1}: ${shot.visual_description || '장면 설명 없음'}`)
+        .join('\n\n');
+
+      const promptText = `다음은 영화 시나리오의 장면 설명입니다. 각 신마다 간략하고 임팩트 있는 나레이션을 작성해주세요.
+각 나레이션은 1-2문장으로 짧고 강렬하게 작성하며, 감정과 분위기를 전달해야 합니다.
+
+시나리오:
+${scenarioText}
+
+응답 형식:
+각 신 번호와 나레이션을 다음과 같이 작성해주세요:
+신1: [나레이션]
+신2: [나레이션]
+...`;
+
+      const result = await genAI.generateContent({
+        contents: [{ role: 'user', parts: [{ text: promptText }] }],
+        generationConfig: {
+          temperature: 0.9,
+          maxOutputTokens: 2048,
+        }
+      });
+
+      const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+      // Parse narrations
+      const newNarrations: Record<number, string> = {};
+      const lines = text.split('\n').filter(line => line.trim());
+
+      lines.forEach(line => {
+        const match = line.match(/^신\s*(\d+)\s*[:：]\s*(.+)$/);
+        if (match) {
+          const shotIndex = parseInt(match[1], 10) - 1;
+          const narration = match[2].trim();
+          if (shotIndex >= 0 && shotIndex < storyboard_sequence.length) {
+            newNarrations[shotIndex] = narration;
+          }
+        }
+      });
+
+      setNarrations(newNarrations);
+      onCopyToast(`나레이션 ${Object.keys(newNarrations).length}개 생성 완료!`);
+    } catch (error) {
+      console.error('Narration generation failed:', error);
+      onCopyToast(`나레이션 생성 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    } finally {
+      setIsGeneratingNarration(false);
+    }
+  };
 
   const handleCopy = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -655,6 +725,17 @@ const OutputSection: React.FC<OutputSectionProps> = ({
           >
             <VideoIcon size={22} weight={activeTab === 'videos' ? 'fill' : 'regular'} />
           </button>
+          <button
+            onClick={() => setActiveTab('scenario')}
+            className={`p-3 rounded-xl transition-all duration-300 ${
+              activeTab === 'scenario'
+                ? 'bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-900/50 scale-105'
+                : 'hover:bg-zinc-900 text-zinc-500 hover:text-zinc-300 hover:scale-105'
+            }`}
+            title="시나리오"
+          >
+            <Article size={22} weight={activeTab === 'scenario' ? 'fill' : 'regular'} />
+          </button>
         </div>
 
         {/* Spacer */}
@@ -770,7 +851,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
                       이미지 다운로드
                     </button>
                   </>
-                ) : (
+                ) : activeTab === 'videos' ? (
                   <button
                     onClick={handleDownloadAllVideos}
                     disabled={isZipping || Object.keys(videoUrls).length === 0}
@@ -783,7 +864,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
                     )}
                     동영상 다운로드
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           </div>
@@ -815,7 +896,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
                   </motion.div>
                 ))}
               </motion.div>
-            ) : (
+            ) : activeTab === 'videos' ? (
               <motion.div
                 key="videos"
                 variants={container}
@@ -838,6 +919,139 @@ const OutputSection: React.FC<OutputSectionProps> = ({
                     />
                   </motion.div>
                 ))}
+              </motion.div>
+            ) : (
+              <motion.div
+                key="scenario"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="w-full"
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_1fr] gap-0 max-h-[calc(100vh-200px)]">
+                  {/* Left: Scenario */}
+                  <div className="bg-zinc-900/60 backdrop-blur-xl rounded-l-2xl border border-zinc-800/50 overflow-hidden shadow-2xl">
+                    <div className="p-6 border-b border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-950/80">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h2 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
+                            <Article size={28} weight="duotone" className="text-emerald-400" />
+                            시나리오
+                          </h2>
+                          <p className="text-sm text-zinc-500 mt-2">{project_meta.title}</p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const scenarioText = storyboard_sequence
+                              .map((shot) => shot.visual_description || '장면 설명이 없습니다.')
+                              .join(' ');
+                            navigator.clipboard.writeText(scenarioText);
+                            setScenarioCopied(true);
+                            setTimeout(() => setScenarioCopied(false), 2000);
+                            onCopyToast('시나리오 전체 복사됨');
+                          }}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+                            scenarioCopied
+                              ? 'bg-emerald-600/20 text-emerald-400'
+                              : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white'
+                          }`}
+                          title="전체 시나리오 복사"
+                        >
+                          {scenarioCopied ? (
+                            <>
+                              <Check size={18} weight="bold" />
+                              <span className="text-sm font-semibold">복사됨</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={18} />
+                              <span className="text-sm font-semibold">전체 복사</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-8 h-[calc(100%-88px)] overflow-y-auto">
+                      <div className="space-y-6">
+                        {storyboard_sequence.map((shot, idx) => (
+                          <div key={idx}>
+                            <p className="text-zinc-300 text-lg leading-relaxed whitespace-pre-line break-keep">
+                              <span className="inline-block px-2.5 py-0.5 mr-2 rounded-md bg-gradient-to-br from-emerald-600 to-teal-600 text-white text-sm font-bold">
+                                #{shot.kf_id}
+                              </span>
+                              <span className="text-zinc-500 text-sm uppercase tracking-wider mr-3">
+                                {shot.shot_type}
+                              </span>
+                              {shot.visual_description || '장면 설명이 없습니다.'}
+                            </p>
+                            {idx < storyboard_sequence.length - 1 && (
+                              <div className="mt-6 border-t border-zinc-800/30" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Center: Generate Button */}
+                  <div className="flex items-center justify-center px-4 lg:px-0">
+                    <button
+                      onClick={generateNarrations}
+                      disabled={isGeneratingNarration}
+                      className="group relative w-16 h-16 lg:w-20 lg:h-20 rounded-full bg-gradient-to-br from-purple-600 via-pink-600 to-rose-600 hover:from-purple-500 hover:via-pink-500 hover:to-rose-500 shadow-2xl shadow-purple-900/50 hover:shadow-purple-900/70 transition-all duration-300 hover:scale-110 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                      title="나레이션 생성"
+                    >
+                      {isGeneratingNarration ? (
+                        <CircleNotch size={32} weight="bold" className="text-white animate-spin" />
+                      ) : (
+                        <Sparkle size={32} weight="duotone" className="text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.5)]" />
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Right: Narration Results */}
+                  <div className="bg-zinc-900/60 backdrop-blur-xl rounded-r-2xl border border-zinc-800/50 overflow-hidden shadow-2xl">
+                    <div className="p-6 border-b border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-950/80">
+                      <h2 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
+                        <Sparkle size={28} weight="duotone" className="text-purple-400" />
+                        나레이션
+                      </h2>
+                      <p className="text-sm text-zinc-500 mt-2">AI 생성 결과</p>
+                    </div>
+
+                    <div className="p-8 h-[calc(100%-88px)] overflow-y-auto">
+                      {Object.keys(narrations).length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full text-zinc-600">
+                          <Sparkle size={48} weight="duotone" className="mb-4 opacity-20" />
+                          <p className="text-sm">버튼을 눌러 나레이션을 생성하세요</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          {storyboard_sequence.map((shot, idx) => (
+                            <div key={idx}>
+                              {narrations[idx] && (
+                                <div className="group">
+                                  <div className="flex items-center gap-2 mb-2">
+                                    <span className="inline-block px-2.5 py-0.5 rounded-md bg-gradient-to-br from-purple-600 to-pink-600 text-white text-sm font-bold">
+                                      #{shot.kf_id}
+                                    </span>
+                                  </div>
+                                  <p className="text-zinc-300 text-lg leading-relaxed italic">
+                                    "{narrations[idx]}"
+                                  </p>
+                                  {idx < storyboard_sequence.length - 1 && narrations[idx + 1] && (
+                                    <div className="mt-6 border-t border-zinc-800/30" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
