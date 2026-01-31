@@ -66,6 +66,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   // Narration generation state
   const [narrations, setNarrations] = useState<Record<number, string>>({});
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
+  const [narrationCopied, setNarrationCopied] = useState(false);
 
   // Initialize Video URLs from JSON (only if not already set)
   useEffect(() => {
@@ -126,7 +127,9 @@ ${scenarioText}
         const match = line.match(/^신\s*(\d+)\s*[:：]\s*(.+)$/);
         if (match) {
           const shotIndex = parseInt(match[1], 10) - 1;
-          const narration = match[2].trim();
+          let narration = match[2].trim();
+          // Remove brackets, quotes, and other formatting
+          narration = narration.replace(/[\[\]"「」『』]/g, '').trim();
           if (shotIndex >= 0 && shotIndex < storyboard_sequence.length) {
             newNarrations[shotIndex] = narration;
           }
@@ -1010,11 +1013,47 @@ ${scenarioText}
                   {/* Right: Narration Results */}
                   <div className="bg-zinc-900/60 backdrop-blur-xl rounded-r-2xl border border-zinc-800/50 overflow-hidden shadow-2xl">
                     <div className="p-6 border-b border-zinc-800 bg-gradient-to-br from-zinc-900/80 to-zinc-950/80">
-                      <h2 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
-                        <Sparkle size={28} weight="duotone" className="text-purple-400" />
-                        나레이션
-                      </h2>
-                      <p className="text-sm text-zinc-500 mt-2">AI 생성 결과</p>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <h2 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
+                            <Sparkle size={28} weight="duotone" className="text-purple-400" />
+                            나레이션
+                          </h2>
+                          <p className="text-sm text-zinc-500 mt-2">AI 생성 결과</p>
+                        </div>
+                        {Object.keys(narrations).length > 0 && (
+                          <button
+                            onClick={() => {
+                              const narrationText = storyboard_sequence
+                                .map((shot, idx) => narrations[idx])
+                                .filter(n => n)
+                                .join(' ');
+                              navigator.clipboard.writeText(narrationText);
+                              setNarrationCopied(true);
+                              setTimeout(() => setNarrationCopied(false), 2000);
+                              onCopyToast('나레이션 전체 복사됨');
+                            }}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+                              narrationCopied
+                                ? 'bg-purple-600/20 text-purple-400'
+                                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white'
+                            }`}
+                            title="전체 나레이션 복사"
+                          >
+                            {narrationCopied ? (
+                              <>
+                                <Check size={18} weight="bold" />
+                                <span className="text-sm font-semibold">복사됨</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy size={18} />
+                                <span className="text-sm font-semibold">전체 복사</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="p-8 h-[calc(100%-88px)] overflow-y-auto">
