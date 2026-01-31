@@ -112,7 +112,7 @@ ${scenarioText}
 ...`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-2.0-flash-exp',
+        model: 'gemini-1.5-flash',
         contents: { parts: [{ text: promptText }] },
       });
 
