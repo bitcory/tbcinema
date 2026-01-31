@@ -93,7 +93,7 @@ const OutputSection: React.FC<OutputSectionProps> = ({
     setIsGeneratingNarration(true);
 
     try {
-      const genAI = new GoogleGenAI({ apiKey: apiKey });
+      const ai = new GoogleGenAI({ apiKey: apiKey });
 
       const scenarioText = storyboard_sequence
         .map((shot, idx) => `신 ${idx + 1}: ${shot.visual_description || '장면 설명 없음'}`)
@@ -111,15 +111,12 @@ ${scenarioText}
 신2: [나레이션]
 ...`;
 
-      const result = await genAI.generateContent({
-        contents: [{ role: 'user', parts: [{ text: promptText }] }],
-        generationConfig: {
-          temperature: 0.9,
-          maxOutputTokens: 2048,
-        }
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash-exp',
+        contents: { parts: [{ text: promptText }] },
       });
 
-      const text = result.response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const text = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
       // Parse narrations
       const newNarrations: Record<number, string> = {};
