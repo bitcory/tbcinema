@@ -52,6 +52,23 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   // 비디오 모델 선택 상태 (각 샷별로 관리)
   const [selectedModels, setSelectedModels] = useState<Record<number, VeoModelId>>({});
 
+  // 이미지 모델 선택 상태
+  type ImageModelId = 'gemini-2.5-flash-image' | 'gemini-3-pro-image-preview';
+  const [selectedImageModel, setSelectedImageModel] = useState<ImageModelId>('gemini-2.5-flash-image');
+
+  const IMAGE_MODELS: { id: ImageModelId; name: string; description: string }[] = [
+    {
+      id: 'gemini-2.5-flash-image',
+      name: 'Gemini 2.5 Flash Image',
+      description: '빠른 이미지 생성'
+    },
+    {
+      id: 'gemini-3-pro-image-preview',
+      name: 'Gemini 3 Pro Image (New)',
+      description: '최고 품질 이미지 생성'
+    },
+  ];
+
   // Image Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
@@ -313,7 +330,7 @@ ${scenarioText}
         parts.push({ text: promptToUse });
 
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
+            model: selectedImageModel,
             contents: { parts },
             config: {
                 imageConfig: {
@@ -826,6 +843,25 @@ ${scenarioText}
               <div className="flex items-center gap-2 border-l border-zinc-800/50 pl-4">
                 {activeTab === 'storyboard' ? (
                   <>
+                    {/* Image Model Selector */}
+                    <div className="relative">
+                      <select
+                        value={selectedImageModel}
+                        onChange={(e) => setSelectedImageModel(e.target.value as ImageModelId)}
+                        className="appearance-none pl-3 pr-8 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-xs text-zinc-300 hover:border-zinc-600 focus:outline-none focus:border-indigo-500/50 cursor-pointer transition-colors"
+                        title="이미지 생성 모델 선택"
+                      >
+                        {IMAGE_MODELS.map((model) => (
+                          <option key={model.id} value={model.id}>
+                            {model.name}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <ImageIconPhosphor size={12} className="text-zinc-500" />
+                      </div>
+                    </div>
+
                     <button
                       onClick={handleGenerateAllImages}
                       disabled={isGlobalGenerating}
