@@ -1107,13 +1107,11 @@ ${scenarioText}
                             <div key={idx}>
                               {narrations[idx] && (
                                 <div className="group">
-                                  <div className="flex items-center gap-2 mb-2">
-                                    <span className="inline-block px-2.5 py-0.5 rounded-md bg-gradient-to-br from-purple-600 to-pink-600 text-white text-sm font-bold">
+                                  <p className="text-zinc-300 text-lg leading-relaxed flex items-baseline gap-2">
+                                    <span className="inline-block px-2.5 py-0.5 rounded-md bg-gradient-to-br from-purple-600 to-pink-600 text-white text-sm font-bold flex-shrink-0">
                                       #{shot.kf_id}
                                     </span>
-                                  </div>
-                                  <p className="text-zinc-300 text-lg leading-relaxed italic">
-                                    "{narrations[idx]}"
+                                    <span className="italic">"{narrations[idx]}"</span>
                                   </p>
                                   {idx < storyboard_sequence.length - 1 && narrations[idx + 1] && (
                                     <div className="mt-6 border-t border-zinc-800/30" />
