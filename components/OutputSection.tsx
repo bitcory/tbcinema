@@ -793,7 +793,7 @@ ${scenarioText}
 
             <div className="flex flex-wrap items-center gap-2">
               {/* Refresh / Backup / Restore Buttons */}
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => {
                     // 이미지와 비디오 상태 초기화 후 다시 불러오기
@@ -811,24 +811,27 @@ ${scenarioText}
                     }
                     onCopyToast('이미지 & 비디오 새로고침 완료!');
                   }}
-                  className="p-2 rounded-lg hover:bg-gradient-to-br hover:from-yellow-600/20 hover:to-orange-600/20 text-zinc-400 hover:text-yellow-400 transition-all duration-300 group"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gradient-to-br hover:from-yellow-600/20 hover:to-orange-600/20 text-zinc-400 hover:text-yellow-400 transition-all duration-300 group"
                   title="이미지 & 비디오 새로고침"
                 >
-                  <ArrowClockwise size={20} weight="bold" className="group-hover:rotate-180 transition-transform duration-500" />
+                  <ArrowClockwise size={16} weight="bold" className="group-hover:rotate-180 transition-transform duration-500" />
+                  <span className="text-xs font-semibold">새로고침</span>
                 </button>
                 <button
                   onClick={handleBackupData}
-                  className="p-2 rounded-lg hover:bg-gradient-to-br hover:from-emerald-600/20 hover:to-green-600/20 text-zinc-400 hover:text-emerald-400 transition-all duration-300 group"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gradient-to-br hover:from-emerald-600/20 hover:to-green-600/20 text-zinc-400 hover:text-emerald-400 transition-all duration-300 group"
                   title="전체 데이터 백업 (JSON 다운로드)"
                 >
-                  <HardDrives size={20} weight="duotone" className="group-hover:scale-110 transition-transform" />
+                  <DownloadSimple size={16} weight="bold" />
+                  <span className="text-xs font-semibold">다운로드</span>
                 </button>
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="p-2 rounded-lg hover:bg-gradient-to-br hover:from-blue-600/20 hover:to-indigo-600/20 text-zinc-400 hover:text-blue-400 transition-all duration-300 group"
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg hover:bg-gradient-to-br hover:from-blue-600/20 hover:to-indigo-600/20 text-zinc-400 hover:text-blue-400 transition-all duration-300 group"
                   title="백업 데이터 복원 (JSON 업로드)"
                 >
-                  <Database size={20} weight="duotone" className="group-hover:scale-110 transition-transform" />
+                  <Database size={16} weight="duotone" />
+                  <span className="text-xs font-semibold">업로드</span>
                 </button>
                 <input
                   ref={fileInputRef}
