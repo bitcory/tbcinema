@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { House, SquaresFour, VideoCamera as VideoIcon, ArrowClockwise, HardDrives, Database, DownloadSimple, Sparkle, CircleNotch, Image as ImageIconPhosphor, FilmSlate, Article, Copy, Check } from 'phosphor-react';
+import { House, SquaresFour, VideoCamera as VideoIcon, ArrowClockwise, HardDrives, Database, DownloadSimple, Sparkle, CircleNotch, Image as ImageIconPhosphor, FilmSlate, Article, Copy, Check, X } from 'phosphor-react';
 import { StoryboardData, VideoGenerationStatus } from '../types';
 import StoryboardCard from './StoryboardCard';
 import VideoCard from './VideoCard';
@@ -84,6 +84,11 @@ const OutputSection: React.FC<OutputSectionProps> = ({
   const [narrations, setNarrations] = useState<Record<number, string>>({});
   const [isGeneratingNarration, setIsGeneratingNarration] = useState(false);
   const [narrationCopied, setNarrationCopied] = useState(false);
+
+  // Video Prompts Modal State
+  const [videoPromptsModalOpen, setVideoPromptsModalOpen] = useState(false);
+  const [copiedPromptIndex, setCopiedPromptIndex] = useState<number | null>(null);
+  const [allPromptsCopied, setAllPromptsCopied] = useState(false);
 
   // Initialize Video URLs from JSON (only if not already set)
   useEffect(() => {
@@ -390,13 +395,15 @@ ${scenarioText}
     try {
         const zip = new JSZip();
         const folder = zip.folder(`storyboard-images-${project_meta.title.replace(/\s+/g, '-').toLowerCase()}`);
-        
+
         if (folder) {
-            keys.forEach(keyStr => {
-                const idx = parseInt(keyStr);
+            // 키를 숫자 순서대로 정렬
+            const sortedKeys = keys.map(k => parseInt(k)).sort((a, b) => a - b);
+
+            // 순서대로 1.png, 2.png... 로 저장
+            sortedKeys.forEach((idx, index) => {
                 const dataUrl = generatedImages[idx];
-                const shot = storyboard_sequence[idx];
-                const filename = `shot-${shot.kf_id}.png`;
+                const filename = `${index + 1}.png`;
                 const base64Data = dataUrl.split(',')[1];
                 folder.file(filename, base64Data, { base64: true });
             });
@@ -891,18 +898,28 @@ ${scenarioText}
                     </button>
                   </>
                 ) : activeTab === 'videos' ? (
-                  <button
-                    onClick={handleDownloadAllVideos}
-                    disabled={isZipping || Object.keys(videoUrls).length === 0}
-                    className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap hover:scale-105 active:scale-95"
-                  >
-                    {isZipping ? (
-                      <CircleNotch size={14} weight="bold" className="animate-spin" />
-                    ) : (
-                      <DownloadSimple size={14} weight="bold" />
-                    )}
-                    동영상 다운로드
-                  </button>
+                  <>
+                    <button
+                      onClick={() => setVideoPromptsModalOpen(true)}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white text-xs font-semibold transition-all duration-300 whitespace-nowrap hover:scale-105 active:scale-95 shadow-lg shadow-purple-900/30"
+                      title="전체 비디오 프롬프트 복사"
+                    >
+                      <Copy size={14} weight="bold" />
+                      프롬프트 복사
+                    </button>
+                    <button
+                      onClick={handleDownloadAllVideos}
+                      disabled={isZipping || Object.keys(videoUrls).length === 0}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap hover:scale-105 active:scale-95"
+                    >
+                      {isZipping ? (
+                        <CircleNotch size={14} weight="bold" className="animate-spin" />
+                      ) : (
+                        <DownloadSimple size={14} weight="bold" />
+                      )}
+                      동영상 다운로드
+                    </button>
+                  </>
                 ) : null}
               </div>
             </div>
@@ -1167,6 +1184,134 @@ ${scenarioText}
         selectedModel={selectedVideoIndex !== null ? selectedModels[selectedVideoIndex] || 'veo-3.1-fast-generate-preview' : 'veo-3.1-fast-generate-preview'}
         onModelChange={(model) => selectedVideoIndex !== null && setSelectedModels(prev => ({ ...prev, [selectedVideoIndex]: model }))}
       />
+
+      {/* Video Prompts Copy Modal */}
+      <AnimatePresence>
+        {videoPromptsModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md p-4"
+            onClick={() => setVideoPromptsModalOpen(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="relative w-full max-w-3xl max-h-[80vh] bg-zinc-900/95 backdrop-blur-xl rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="sticky top-0 z-10 p-6 border-b border-zinc-800 bg-gradient-to-br from-zinc-900 to-zinc-950">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-zinc-100 flex items-center gap-3">
+                      <Copy size={28} weight="duotone" className="text-purple-400" />
+                      비디오 프롬프트
+                    </h2>
+                    <p className="text-sm text-zinc-500 mt-2">각 씬별 프롬프트를 복사하세요</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const allPrompts = storyboard_sequence
+                          .map((shot) => shot.prompts?.video_gen)
+                          .filter(p => p)
+                          .join('\n\n');
+                        navigator.clipboard.writeText(allPrompts);
+                        setAllPromptsCopied(true);
+                        setTimeout(() => setAllPromptsCopied(false), 2000);
+                        onCopyToast('모든 프롬프트 복사됨');
+                      }}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-300 ${
+                        allPromptsCopied
+                          ? 'bg-purple-600/20 text-purple-400'
+                          : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white'
+                      }`}
+                      title="모든 프롬프트 복사"
+                    >
+                      {allPromptsCopied ? (
+                        <>
+                          <Check size={18} weight="bold" />
+                          <span className="text-sm font-semibold">복사됨</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={18} />
+                          <span className="text-sm font-semibold">전체 복사</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setVideoPromptsModalOpen(false)}
+                      className="p-2 rounded-lg bg-zinc-800 hover:bg-red-600/50 text-zinc-400 hover:text-white transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 overflow-y-auto max-h-[calc(80vh-120px)]">
+                <div className="space-y-4">
+                  {storyboard_sequence.map((shot, idx) => {
+                    const prompt = shot.prompts?.video_gen;
+                    if (!prompt) return null;
+
+                    return (
+                      <div
+                        key={idx}
+                        className="p-4 bg-zinc-950/60 border border-zinc-800/50 rounded-xl hover:border-purple-500/30 transition-all duration-300 group"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="flex-shrink-0 px-3 py-1.5 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 text-white text-sm font-bold">
+                            #{shot.kf_id}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-zinc-300 text-base leading-relaxed whitespace-pre-line break-words">
+                              {prompt}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(prompt);
+                              setCopiedPromptIndex(idx);
+                              setTimeout(() => setCopiedPromptIndex(null), 2000);
+                              onCopyToast(`#${shot.kf_id} 프롬프트 복사됨`);
+                            }}
+                            className={`flex-shrink-0 p-2 rounded-lg transition-all ${
+                              copiedPromptIndex === idx
+                                ? 'bg-purple-600/20 text-purple-400'
+                                : 'bg-zinc-800 hover:bg-zinc-700 text-zinc-500 hover:text-white opacity-0 group-hover:opacity-100'
+                            }`}
+                            title="이 프롬프트 복사"
+                          >
+                            {copiedPromptIndex === idx ? (
+                              <Check size={16} weight="bold" />
+                            ) : (
+                              <Copy size={16} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* No prompts message */}
+                {storyboard_sequence.filter(shot => shot.prompts?.video_gen).length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-20 text-zinc-500">
+                    <Copy size={48} weight="duotone" className="mb-4 opacity-20" />
+                    <p className="text-sm">비디오 프롬프트가 없습니다</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
